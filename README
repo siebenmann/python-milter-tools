@@ -1,0 +1,6 @@
+== What it is:
+
+This is a Python module for general (sendmail) milter support. Its goal
+is to provide tools for dealing with either side of the milter protocol
+(either as a milter or as a pseudo-mailer that speaks to a milter),
+starting with protocol encoding and decoding.
