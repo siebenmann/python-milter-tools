@@ -32,12 +32,16 @@ sample_msgs = [
 	('d', {}),
 	('h', {'name': 'X-Annoyance', 'value': 'Testing'}),
 	('m', {'index': 10, 'name': 'X-Spam-Goblets', 'value': '100% canned'}),
-	('m', {'index': 1, 'name': 'Subject', 'value': ''}),
 	('p', {}),
 	('q', {'reason': 'Your mother was an Englishman'}),
 	('r', {}),
 	('t', {}),
 	('y', {'smtpcode': '450', 'space': ' ', 'text': 'lazyness strikes'}),
+
+	# It is explicitly valid to have an empty value for a modified
+	# header; this deletes the header. We test that we can at least
+	# generate such a message.
+	('m', {'index': 1, 'name': 'Subject', 'value': ''}),
 	]
 
 class basicTests(unittest.TestCase):
