@@ -5,8 +5,38 @@
 # binary string.
 #
 import struct
+
+# Milter constants
 from consts import *
 
+__doc__ = """Encode and decode the sendmail milter protocol.
+
+This takes binary strings and decodes them to milter messages, or
+encodes milter messages into binary strings.
+"""
+__all__ = ["MilterProtoError", "MilterIncomplete", "MilterDecodeError",
+	   "encode_msg", "decode_msg", "pull_message", ]
+
+# (Public) exceptions
+class MilterProtoError(Exception):
+	"""General encoding or decoding failure."""
+	pass
+class MilterIncomplete(MilterProtoError):
+	"""The data buffer passed for decoding needs more data."""
+	pass
+class MilterDecodeError(MilterProtoError):
+	"""The milter packet we are trying to decode is malformed."""
+	pass
+
+# This is effectively an internal exception; it is turned into either
+# MilterIncomplete or MilterDecodeError.
+class MilterNotEnough(MilterProtoError):
+	"""Not enough data to finish decoding."""
+	pass
+
+# This maps milter commands and responses to the data structures that
+# they use. The value is a tuple of (fieldname, fieldtype) tuples, in
+# the order that they occur in the binary encoding.
 codec = {
 	SMFIC_ABORT: (),
 	SMFIC_BODY: (('buf', 'str'),),
@@ -47,16 +77,6 @@ codec = {
 			  ('text', 'str'),),
 	# SMFIC_OPTNEG is also a valid response.
 	}
-
-
-class MilterProtoError(Exception):
-	pass
-class MilterNotEnough(MilterProtoError):
-	pass
-class MilterIncomplete(MilterProtoError):
-	pass
-class MilterDecodeError(MilterProtoError):
-	pass
 
 #----
 # Encoders and decoders for all of the different types we know about.
