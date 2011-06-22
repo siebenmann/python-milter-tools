@@ -133,20 +133,18 @@ def decode_str(data):
 	return r[0], r[1]
 
 # A string array consumes the rest of the data.
-def decode_strs(data):
+def decode_strs(data, empty_ok = False):
 	r = []
 	while data:
 		s, data = decode_str(data)
 		r.append(s)
-	if not r:
-		# <cks> believes that this is a requirement in the
-		# milter protocol, at least implicitly.
-		# You can argue about this for the SMFIC_MACRO; in theory
-		# you could send a SMFIC_MACRO with empty macro definitions.
+	if not empty_ok and not r:
+		# An empty list is not allowed in 'M' or 'R', but it
+		# is in 'D' (macros)
 		raise MilterNotEnough("no strings in string array")
 	return r, ''
 def decode_strpairs(data):
-	r, data = decode_strs(data)
+	r, data = decode_strs(data, empty_ok = True)
 	if len(r) % 2 != 0:
 		raise MilterNotEnough("uneven string pairs")
 	return r, data
@@ -232,25 +230,3 @@ def decode_msg(data):
 	if len(buf) > 0:
 		raise MilterDecodeError("decode: packet too long")
 	return (cmd, rstruct, rest)
-
-# Pull a message from data + an IO stream
-def pull_message(data, stream, blksize = 1024):
-	"""Pull a message from an existing data buffer and a stream. This
-	returns the same thing that decode_msg() does. The stream must support
-	.read(). The optional blksize parameter is the size of data blocks to
-	try to read from the stream. Returns None on end of file, or raises
-	MilterDecodeError if we saw EOF with an incomplete packet."""
-	while 1:
-		try:
-			if data:
-				return decode_msg(data)
-		except MilterIncomplete:
-			pass
-		d1 = stream.recv(blksize)
-		# Zero bytes read is end of file
-		if not d1 and data:
-			raise MilterDecodeError("packet truncated by EOF")
-		elif not d1:
-			return None
-		data += d1
-		del d1

@@ -25,6 +25,7 @@ class codingTests(unittest.TestCase):
 		# Corner case for strings
 		('str', ''),
 		('strs', ['a', '']),
+		('strpairs', []),
 		# these are corner cases for unsigned int ranges
 		('u16', (2**16)-1),
 		('u32', (2**32)-1),
@@ -76,6 +77,8 @@ sample_msgs = [
 	# header; this deletes the header. We test that we can at least
 	# generate such a message.
 	('m', {'index': 1, 'name': 'Subject', 'value': ''}),
+	# Macros can be empty.
+	('D', {'cmdcode': 'H', 'nameval': []}),
 	]
 
 class basicTests(unittest.TestCase):
