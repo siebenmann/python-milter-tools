@@ -127,8 +127,6 @@ def decode_u16(data):
 def decode_u32(data):
 	return unpack_n(data, '!L')
 def decode_str(data):
-	if len(data) == 0:
-		raise MilterNotEnough("short string")
 	r = data.split('\0', 1)
 	if len(r) != 2:
 		raise MilterNotEnough("short string")
@@ -162,7 +160,10 @@ codectypes = {
 	'strs': (encode_strs, decode_strs),
 	'strpairs': (encode_strpairs, decode_strpairs),
 	}
-
+def encode(ctype, val):
+	return codectypes[ctype][0](val)
+def decode(ctype, data):
+	return codectypes[ctype][1](data)
 
 # A milter message itself is:
 #	uint32 len
@@ -183,8 +184,7 @@ def encode_msg(cmd, **kwargs):
 		raise MilterProtoError("encode: parameter mismatch")
 	data = []
 	for name, ctype in parmlst:
-		encoder = codectypes[ctype][0]
-		data.append(encoder(kwargs[name]))
+		data.append(encode(ctype, (kwargs[name])))
 	dstr = "".join(data)
 	return struct.pack("!Lc", len(dstr) + 1, cmd) + dstr
 
@@ -222,9 +222,8 @@ def decode_msg(data):
 	buf = data[:dlen]
 	rstruct = {}
 	for name, ctype in codec[cmd]:
-		decoder = codectypes[ctype][1]
 		try:
-			rstruct[name], buf = decoder(buf)
+			rstruct[name], buf = decode(ctype, buf)
 		except MilterNotEnough:
 			raise MilterDecodeError("packet contents truncated")
 	# If the packet buffer has remaining data, it means that there was
