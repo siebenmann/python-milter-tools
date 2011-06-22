@@ -6,6 +6,40 @@ import unittest, struct
 
 import codec
 
+# This may violate the tenets of (unit)testing, since this is not an
+# exposed interface of the codec module but instead an internal
+# implementation detail. I am testing it directly because I want to
+# know if encoding or decoding a particular type of thing fails,
+# rather than inferring it through the failure of various message
+# encoding/decoding tests.
+class codingTests(unittest.TestCase):
+	ctypes = (
+		('char', 'A'),
+		('char3', 'abc'),
+		('u16', 10),
+		('u32', 30000),
+		('str', 'a long string'),
+		('strs', ['a', 'b', 'c', ]),
+		('strpairs', ['d', 'e', 'f', 'g', 'h', 'i',]),
+
+		# Corner case for strings
+		('str', ''),
+		('strs', ['a', '']),
+		# these are corner cases for unsigned int ranges
+		('u16', (2**16)-1),
+		('u32', (2**32)-1),
+		)
+
+	def testEncodeDecode(self):
+		"""Test that we can encode and then decode an example of
+		every known type."""
+		for ctype, val in self.ctypes:
+			d = codec.encode(ctype, val)
+			r, d2 = codec.decode(ctype, d)
+			self.assertEqual(val, r)
+			# also, nothing left over from the data
+			self.assertEqual(d2, '')
+
 # A sample message for every milter protocol message that we know about.
 sample_msgs = [
 	('A', {}),
