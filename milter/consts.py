@@ -1,7 +1,7 @@
 #
 # Constants for the milter protocol.
-
-# Milter protocol constants.
+#
+__doc__ = """Constants for the milter protocol"""
 
 MILTER_VERSION = 2 # Milter version we claim to speak (from pmilter)
 MILTER_CHUNK_SIZE = 65535 # How large a SMFIC_BODY body can be

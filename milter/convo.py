@@ -7,6 +7,7 @@
 from consts import *
 import codec
 
+__doc__ = """Support for having a milter protocol conversation across a socket"""
 __all__ = ['MilterConvoError', 'BufferedMilter',
 	   'accept_reject_replies', 'bodyeob_replies',
 	   ]
