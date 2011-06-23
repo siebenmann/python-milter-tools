@@ -130,7 +130,7 @@ class continuedTests(unittest.TestCase):
 		the way that we expect."""
 		s = FakeSocket()
 		hdrs = (('From', 'Chris'), ('To', 'Simon'), ('Subject', 'Yak'))
-		for h in hdrs:
+		for _ in hdrs:
 			s.addMTAWrite(SMFIC_HEADER)
 		mbuf = convo.BufferedMilter(s)
 		rcmd, rdict = mbuf.send_headers(hdrs)
