@@ -15,7 +15,7 @@ This takes binary strings and decodes them to milter messages, or
 encodes milter messages into binary strings.
 """
 __all__ = ["MilterProtoError", "MilterIncomplete", "MilterDecodeError",
-	   "encode_msg", "decode_msg", "pull_message", ]
+	   "encode_msg", "decode_msg", ]
 
 # (Public) exceptions
 class MilterProtoError(Exception):
