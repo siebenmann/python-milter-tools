@@ -72,6 +72,11 @@ codec = {
 	SMFIR_QUARANTINE: (('reason', 'str'),),
 	SMFIR_REJECT: (),
 	SMFIR_TEMPFAIL: (),
+	# It is kind of lame that we force people to explicitly encode
+	# the space field (with a ' ', to be spec-compliant). But doing
+	# a nicer version requires building an encoding/decoding system
+	# that knows about padding fields, just for this one field in one
+	# message.
 	SMFIR_REPLYCODE: (('smtpcode', 'char3'),
 			  ('space', 'char'),
 			  ('text', 'str'),),
