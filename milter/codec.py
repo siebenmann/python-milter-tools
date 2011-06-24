@@ -89,12 +89,17 @@ codec = {
 # Encoders take a value and return that value encoded as a binary string.
 def encode_str(val):
 	return "%s\0" % val
-def encode_strs(val):
+def encode_strs(val, empty_ok = False):
+	if len(val) == 0 and not empty_ok:
+		# Chris believes that this is impossible for messages that
+		# directly use string arrays; both of them require at least
+		# one argument.
+		raise MilterProtoError("empty string array")
 	return ''.join(encode_str(x) for x in val)
 def encode_strpairs(val):
 	if len(val) % 2 != 0:
 		raise MilterProtoError("uneven number of name/value pairs")
-	return encode_strs(val)
+	return encode_strs(val, empty_ok = True)
 def encode_chr(val):
 	return struct.pack('c', val)
 def encode_u16(val):
