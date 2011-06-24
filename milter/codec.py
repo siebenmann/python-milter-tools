@@ -275,13 +275,6 @@ def decode_msg(data):
 	# If the packet buffer has remaining data, it means that there was
 	# extra, un-consumed data after the data we expected. This is a fatal
 	# encoding error.
-	# Or at least it should be, except that it appears to happen.
-	# The culprit is our friend SMFIR_REPLBODY and PureMessage.
-	if len(buf) > 0 and cmd == SMFIR_REPLBODY:
-		# Ignore the error. I hate PureMessage, or something.
-		# It is tempting to get the sendmail source and see what
-		# it really expects.
-		pass
-	elif len(buf) > 0:
+	if len(buf) > 0:
 		raise MilterDecodeError("decode: packet too long. packet type: '%s', len %d, remaining: %s raw %s" % (cmd, mlen, repr(buf), repr(rawdata[:mlen+4])))
 	return (cmd, rstruct, rest)
