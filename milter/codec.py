@@ -63,7 +63,13 @@ codec = {
 	SMFIR_ADDRCPT: (('rcpt', 'str'),),
 	SMFIR_DELRCPT: (('rcpt', 'str'),),
 	SMFIR_ACCEPT: (),
-	SMFIR_REPLBODY: (('buf', 'str'),),
+	# The reverse engineered spec I've seen says that REPLBODY is
+	# the entire new body as one message and is a null-terminated string.
+	# PureMessage actually sends multiple REPLBODY messages and doesn't
+	# zero-terminate its strings. This means that we need a special
+	# field type just for SMFIR_REPLBODY.
+	# Sigh.
+	SMFIR_REPLBODY: (('buf', 'strn0'),),
 	SMFIR_CONTINUE: (),
 	SMFIR_DISCARD: (),
 	SMFIR_ADDHEADER: (('name', 'str'), ('value', 'str')),
@@ -151,11 +157,19 @@ def decode_u16(data):
 	return unpack_n(data, '!H')
 def decode_u32(data):
 	return unpack_n(data, '!L')
-def decode_str(data):
+# It turns out that the terminating \0 on strings is optional in some
+# circumstances, in the sense that a real milter implementation doesn't
+# send it for SMFIR_REPLBODY. Sigh.
+def decode_str(data, zeroterm = True):
 	r = data.split('\0', 1)
 	if len(r) != 2:
-		raise MilterNotEnough("short string")
+		if zeroterm:
+			raise MilterNotEnough("short string")
+		else:
+			r.append('')
 	return r[0], r[1]
+def decode_strn0(data):
+	return decode_str(data, zeroterm = False)
 
 # A string array consumes the rest of the data.
 def decode_strs(data, empty_ok = False):
@@ -175,6 +189,9 @@ def decode_strpairs(data):
 
 codectypes = {
 	'str': (encode_str, decode_str),
+	# We still encode strn0 strings as zero-terminated, we just don't
+	# require zero termination on input.
+	'strn0': (encode_str, decode_strn0),
 	'char': (encode_chr, decode_chr),
 	'char3': (encode_chr3, decode_chr3),
 	'u16': (encode_u16, decode_u16),
@@ -222,6 +239,7 @@ def decode_msg(data):
 	"""
 	# We need to read the initial message length and the command. If
 	# we don't have that much, the message is clearly incomplete.
+	rawdata = data
 	try:
 		mlen, data = decode_u32(data)
 		if mlen == 0:
@@ -247,7 +265,9 @@ def decode_msg(data):
 		try:
 			rstruct[name], buf = decode(ctype, buf)
 		except MilterNotEnough:
-			raise MilterDecodeError("packet contents truncated")
+			# This is an obsessively detailed exception.
+			# It was necessary.
+			raise MilterDecodeError("packet contents for '%s' truncated decoding %s: %d / %s / %s" % (cmd, ctype, mlen, repr(buf), repr(rawdata[:mlen+10])))
 	# If the packet buffer has remaining data, it means that there was
 	# extra, un-consumed data after the data we expected. This is a fatal
 	# encoding error.

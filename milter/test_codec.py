@@ -5,6 +5,7 @@
 import unittest, struct
 
 import codec
+from consts import *
 
 # This may violate the tenets of (unit)testing, since this is not an
 # exposed interface of the codec module but instead an internal
@@ -19,11 +20,13 @@ class codingTests(unittest.TestCase):
 		('u16', 10),
 		('u32', 30000),
 		('str', 'a long string'),
+		('strn0', 'a long string mark 2'),
 		('strs', ['a', 'b', 'c', ]),
 		('strpairs', ['d', 'e', 'f', 'g', 'h', 'i',]),
 
 		# Corner case for strings
 		('str', ''),
+		('strn0', ''),
 		('strs', ['a', '']),
 		('strpairs', []),
 		# these are corner cases for unsigned int ranges
@@ -40,6 +43,13 @@ class codingTests(unittest.TestCase):
 			self.assertEqual(val, r)
 			# also, nothing left over from the data
 			self.assertEqual(d2, '')
+
+	def testStrN0(self):
+		"""Test that strn0 decodes a non-zero-terminated string."""
+		# We cannot test this above because we do not generate such
+		# strings.
+		tstr = "abcdef"
+		self.assertEqual(codec.decode("strn0", tstr), (tstr, ''))
 
 	# Test bad encodes that should error out.
 	bencs = (
@@ -172,6 +182,10 @@ class basicTests(unittest.TestCase):
 		for cmd, args in sample_msgs:
 			# We can't shorten a message that has no arguments.
 			if not args:
+				continue
+			# Because of stupidity seen in real life, we can't
+			# shorten REPLBODY messages
+			if cmd == SMFIR_REPLBODY:
 				continue
 			r = codec.encode_msg(cmd, **args)
 			r = self._changelen(r, -1)
