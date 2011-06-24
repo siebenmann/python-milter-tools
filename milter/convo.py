@@ -19,7 +19,7 @@ class MilterConvoError(Exception):
 # Specific command sets:
 # accept/reject actions
 accept_reject_replies = (SMFIR_ACCEPT, SMFIR_CONTINUE, SMFIR_REJECT,
-			 SMFIR_TEMPFAIL, SMFIR_REPLYCODE)
+			 SMFIR_TEMPFAIL, SMFIR_REPLYCODE, SMFIR_DISCARD)
 # actions valid after BODYEOB
 bodyeob_replies = accept_reject_replies + \
 		  (SMFIR_ADDHEADER, SMFIR_CHGHEADER, SMFIR_REPLBODY,
