@@ -85,15 +85,30 @@ codec = {
 
 #----
 # Encoders and decoders for all of the different types we know about.
+#
+# Content constraints:
+# char3: must have exactly three characters. We explicitly check this
+#        only on encode; on decode it is implicitly checked by the field
+#	 specification.
+# strpairs: this generates an array, so we check that the array has an
+#	 even number of elements (ie, has pairs). The array is allowed
+#	 to be empty; as far as I can see, it is and should be valid to
+#	 send a SMFIC_MACRO with no macro values set.
+# strs:  this generates an array and we insist that the array has at least
+#	 one value. 'strs' is used only by SMFIC_MAIL and SMFIC_RCPT,
+#	 and the spec requires that the first array element is the actual
+#	 argument ... which must exist, even if it is '<>' for a null sender
+#	 or recipient.
+#
+# (Because the 'strs' encoder and decoder are also used by strpairs, they
+# take a private argument to control this behavior.)
 
 # Encoders take a value and return that value encoded as a binary string.
 def encode_str(val):
 	return "%s\0" % val
 def encode_strs(val, empty_ok = False):
 	if len(val) == 0 and not empty_ok:
-		# Chris believes that this is impossible for messages that
-		# directly use string arrays; both of them require at least
-		# one argument.
+		# See comment above for why this is justified.
 		raise MilterProtoError("empty string array")
 	return ''.join(encode_str(x) for x in val)
 def encode_strpairs(val):
@@ -108,7 +123,7 @@ def encode_u32(val):
 	return struct.pack('!L', val)
 def encode_chr3(val):
 	if len(val) != 3:
-		raise MilterProtoError("mis-sized chr3")
+		raise MilterProtoError("mis-sized char3")
 	return struct.pack('3s', val)
 
 ##
@@ -149,8 +164,7 @@ def decode_strs(data, empty_ok = False):
 		s, data = decode_str(data)
 		r.append(s)
 	if not empty_ok and not r:
-		# An empty list is not allowed in 'M' or 'R', but it
-		# is in 'D' (macros)
+		# See comment above for why this is justified.
 		raise MilterNotEnough("no strings in string array")
 	return r, ''
 def decode_strpairs(data):
