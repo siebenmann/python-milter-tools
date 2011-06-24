@@ -41,6 +41,34 @@ class codingTests(unittest.TestCase):
 			# also, nothing left over from the data
 			self.assertEqual(d2, '')
 
+	# Test bad encodes that should error out.
+	bencs = (
+		('char3', 'a'),
+		('char3', 'abcd'),
+		('strs', []),
+		('strpairs', ['a',]),
+		)
+	def testBadEncode(self):
+		"""Test that certain things fail to encode with errors."""
+		for ctype, val in self.bencs:
+			self.assertRaises(codec.MilterProtoError,
+					  codec.encode, ctype, val)
+
+	bdecs = (
+		# No terminating \0
+		('str', 'abcdef'),
+		# uneven number of pairs
+		('strpairs', 'abc\0def\0ghi\0'),
+		# No strings in string array
+		('strs', ''),
+		)
+	def testBadDecode(self):
+		"""Test that certain things fail to decode."""
+		for ctype, data in self.bdecs:
+			self.assertRaises(codec.MilterProtoError,
+					  codec.decode, ctype, data)
+		
+
 # A sample message for every milter protocol message that we know about.
 sample_msgs = [
 	('A', {}),
@@ -128,6 +156,16 @@ class basicTests(unittest.TestCase):
 		r = r[:4] + 'D'
 		self.assertRaises(codec.MilterDecodeError,
 				  codec.decode_msg, r)
+
+	# Change the claimed length of a message by delta (may be positive
+	# or negative). If this lengthens the message, you need to supply
+	# extra actual data yourself.
+	def _changelen(self, msg, delta):
+		tlen = struct.unpack("!L", msg[:4])[0]
+		tlen = tlen + delta
+		if tlen <= 0:
+			raise IndexError("new length too short")
+		return struct.pack("!L", tlen) + msg[4:]
 	def testBrokenLength(self):
 		"""Sleazily test for a too-short version of every message."""
 		minlen = struct.pack("!L", 1)
@@ -136,15 +174,25 @@ class basicTests(unittest.TestCase):
 			if not args:
 				continue
 			r = codec.encode_msg(cmd, **args)
-			tlen = struct.unpack("!L", r[:4])[0]
-			tlen = tlen -1
-			r = struct.pack("!L", tlen) + r[4:]
+			r = self._changelen(r, -1)
 			self.assertRaises(codec.MilterDecodeError,
 					  codec.decode_msg, r)
 			# See what happens with a minimum-length message.
 			r = minlen + r[4:]
 			self.assertRaises(codec.MilterDecodeError,
 					  codec.decode_msg, r)
+
+	def testExtraLength(self):
+		"""Sleazily test that messages with extra packet data
+		fail to decode."""
+		for cmd, args in sample_msgs:
+			r = codec.encode_msg(cmd, **args)
+			# remember: we've got to supply the actual extra
+			# data, or we just get a 'message incomplete' note.
+			r = self._changelen(r, +10) + ("*" * 10)
+			self.assertRaises(codec.MilterDecodeError,
+					  codec.decode_msg, r)
+			
 
 	def testZeroLength(self):
 		"""Trying to decode a zero-length message should fail with
