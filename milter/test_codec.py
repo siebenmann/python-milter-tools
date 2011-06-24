@@ -20,13 +20,12 @@ class codingTests(unittest.TestCase):
 		('u16', 10),
 		('u32', 30000),
 		('str', 'a long string'),
-		('strn0', 'a long string mark 2'),
 		('strs', ['a', 'b', 'c', ]),
 		('strpairs', ['d', 'e', 'f', 'g', 'h', 'i',]),
+		('buf', 'a buffer with an embedded \0 just for fun'),
 
 		# Corner case for strings
 		('str', ''),
-		('strn0', ''),
 		('strs', ['a', '']),
 		('strpairs', []),
 		# these are corner cases for unsigned int ranges
@@ -43,13 +42,6 @@ class codingTests(unittest.TestCase):
 			self.assertEqual(val, r)
 			# also, nothing left over from the data
 			self.assertEqual(d2, '')
-
-	def testStrN0(self):
-		"""Test that strn0 decodes a non-zero-terminated string."""
-		# We cannot test this above because we do not generate such
-		# strings.
-		tstr = "abcdef"
-		self.assertEqual(codec.decode("strn0", tstr), (tstr, ''))
 
 	# Test bad encodes that should error out.
 	bencs = (
@@ -183,9 +175,9 @@ class basicTests(unittest.TestCase):
 			# We can't shorten a message that has no arguments.
 			if not args:
 				continue
-			# Because of stupidity seen in real life, we can't
-			# shorten REPLBODY messages
-			if cmd == SMFIR_REPLBODY:
+			# We can't shorten or grow SMFIC_BODY or
+			# SMFIR_REPLYBODY messages.
+			if cmd in (SMFIC_BODY, SMFIR_REPLBODY):
 				continue
 			r = codec.encode_msg(cmd, **args)
 			r = self._changelen(r, -1)
@@ -200,6 +192,10 @@ class basicTests(unittest.TestCase):
 		"""Sleazily test that messages with extra packet data
 		fail to decode."""
 		for cmd, args in sample_msgs:
+			# We can't shorten or grow SMFIC_BODY or
+			# SMFIR_REPLYBODY messages.
+			if cmd in (SMFIC_BODY, SMFIR_REPLBODY):
+				continue
 			r = codec.encode_msg(cmd, **args)
 			# remember: we've got to supply the actual extra
 			# data, or we just get a 'message incomplete' note.

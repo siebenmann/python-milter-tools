@@ -37,9 +37,22 @@ class MilterNotEnough(MilterProtoError):
 # This maps milter commands and responses to the data structures that
 # they use. The value is a tuple of (fieldname, fieldtype) tuples, in
 # the order that they occur in the binary encoding.
+#
+# A note:
+# The reverse engineered spec I've seen says that SMFIR_REPLBODY is
+# the entire new body as one message and is a null-terminated string.
+# This is wrong. Experience with PureMessage and inspection of the
+# sendmail source code says that both SMFIC_BODY and SMFIR_REPLBODY
+# are simply character blocks, and in fact are supposed to have
+# bare LF converted to CRLF when sending to the milter and converted
+# back to a bare LF on receive. (We opt not to try to do that at this
+# level, since it may require spanning block buffers.)
+# Like SMFIC_BODY, SMFIR_REPLBODY may be sent multiple times (and there
+# is no requirement that the chunks be large).
+#
 codec = {
 	SMFIC_ABORT: (),
-	SMFIC_BODY: (('buf', 'str'),),
+	SMFIC_BODY: (('buf', 'buf'),),
 	SMFIC_CONNECT: (('hostname', 'str'),
 			('family', 'char'),
 			('port', 'u16'),
@@ -63,13 +76,7 @@ codec = {
 	SMFIR_ADDRCPT: (('rcpt', 'str'),),
 	SMFIR_DELRCPT: (('rcpt', 'str'),),
 	SMFIR_ACCEPT: (),
-	# The reverse engineered spec I've seen says that REPLBODY is
-	# the entire new body as one message and is a null-terminated string.
-	# PureMessage actually sends multiple REPLBODY messages and doesn't
-	# zero-terminate its strings. This means that we need a special
-	# field type just for SMFIR_REPLBODY.
-	# Sigh.
-	SMFIR_REPLBODY: (('buf', 'strn0'),),
+	SMFIR_REPLBODY: (('buf', 'buf'),),
 	SMFIR_CONTINUE: (),
 	SMFIR_DISCARD: (),
 	SMFIR_ADDHEADER: (('name', 'str'), ('value', 'str')),
@@ -110,6 +117,8 @@ codec = {
 # take a private argument to control this behavior.)
 
 # Encoders take a value and return that value encoded as a binary string.
+def encode_buf(val):
+	return val
 def encode_str(val):
 	return "%s\0" % val
 def encode_strs(val, empty_ok = False):
@@ -157,19 +166,16 @@ def decode_u16(data):
 	return unpack_n(data, '!H')
 def decode_u32(data):
 	return unpack_n(data, '!L')
-# It turns out that the terminating \0 on strings is optional in some
-# circumstances, in the sense that a real milter implementation doesn't
-# send it for SMFIR_REPLBODY. Sigh.
-def decode_str(data, zeroterm = True):
+def decode_str(data):
 	r = data.split('\0', 1)
 	if len(r) != 2:
-		if zeroterm:
-			raise MilterNotEnough("short string")
-		else:
-			r.append('')
+		raise MilterNotEnough("short string")
 	return r[0], r[1]
-def decode_strn0(data):
-	return decode_str(data, zeroterm = False)
+
+# A buffer necessarily consumes all remaining data, since it has no
+# terminator.
+def decode_buf(data):
+	return data, ''
 
 # A string array consumes the rest of the data.
 def decode_strs(data, empty_ok = False):
@@ -188,10 +194,8 @@ def decode_strpairs(data):
 	return r, data
 
 codectypes = {
+	'buf': (encode_buf, decode_buf),
 	'str': (encode_str, decode_str),
-	# We still encode strn0 strings as zero-terminated, we just don't
-	# require zero termination on input.
-	'strn0': (encode_str, decode_strn0),
 	'char': (encode_chr, decode_chr),
 	'char3': (encode_chr3, decode_chr3),
 	'u16': (encode_u16, decode_u16),
@@ -271,6 +275,13 @@ def decode_msg(data):
 	# If the packet buffer has remaining data, it means that there was
 	# extra, un-consumed data after the data we expected. This is a fatal
 	# encoding error.
-	if len(buf) > 0:
-		raise MilterDecodeError("decode: packet too long")
+	# Or at least it should be, except that it appears to happen.
+	# The culprit is our friend SMFIR_REPLBODY and PureMessage.
+	if len(buf) > 0 and cmd == SMFIR_REPLBODY:
+		# Ignore the error. I hate PureMessage, or something.
+		# It is tempting to get the sendmail source and see what
+		# it really expects.
+		pass
+	elif len(buf) > 0:
+		raise MilterDecodeError("decode: packet too long. packet type: '%s', len %d, remaining: %s raw %s" % (cmd, mlen, repr(buf), repr(rawdata[:mlen+4])))
 	return (cmd, rstruct, rest)
