@@ -174,5 +174,38 @@ class continuedTests(unittest.TestCase):
 		self.assertEqual(rcmd, SMFIR_ACCEPT)
 		self.assertTrue(s.isEmpty())
 
+	optneg_mta_pairs = (
+		((SMFI_V2_ACTS, SMFI_V2_PROT), (SMFI_V2_ACTS, SMFI_V2_PROT)),
+		((0x10, 0x10), (0x10, 0x10)),
+		((0xff, 0xff), (SMFI_V2_ACTS, SMFI_V2_PROT)),
+		)
+	def testMilterOptneg(self):
+		"""Test that the MTA version of option negotiation returns
+		what we expect it to."""
+		for a, b in self.optneg_mta_pairs:
+			s = FakeSocket()
+			s.addWrite(SMFIC_OPTNEG)
+			s.addReadMsg(SMFIC_OPTNEG, version=MILTER_VERSION,
+				     actions=a[0], protocol=a[1])
+			# strict=True would blow up on the last test.
+			ract, rprot = convo.BufferedMilter(s).optneg_mta(strict=False)
+			self.assertEqual(ract, b[0])
+			self.assertEqual(rprot, b[1])
+
+	optneg_exc_errors = ((SMFI_V2_ACTS, 0xff),
+			     (0xff, SMFI_V2_PROT),
+			     (0xff, 0xff),)
+	def testMilterONOutside(self):
+		"""Test that the MTA version of option negotiation errors
+		out if there are excess bits in the milter reply."""
+		for act, prot in self.optneg_exc_errors:
+			s = FakeSocket()
+			s.addWrite(SMFIC_OPTNEG)
+			s.addReadMsg(SMFIC_OPTNEG, version=MILTER_VERSION,
+				     actions=act, protocol=prot)
+			bm = convo.BufferedMilter(s)
+			self.assertRaises(convo.MilterConvoError,
+					  bm.optneg_mta)
+
 if __name__ == "__main__":
 	unittest.main()

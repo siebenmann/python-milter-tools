@@ -148,3 +148,51 @@ class BufferedMilter(object):
 			if r[0] != SMFIR_CONTINUE:
 				break
 		return r
+
+	# Option negotiation from the MTA and milter view.
+	def optneg_mta(self, actions=SMFI_V2_ACTS, protocol=SMFI_V2_PROT,
+		       strict=True):
+		"""Perform the initial option negocation as a MTA. Returns
+		a tuple of (actions, protocol) bitmasks for what we support.
+		If strict is True (the default), raises MilterConvoError if
+		the milter returns a SMFIR_OPTNEG that asks for things we
+		told it that we do not support.
+		
+		Can optionally be passed more restrictive values for actions
+		and protocol, but this is not recommended; milters may dislike
+		it enough to disconnect abruptly on you."""
+		actions, protocol = codec.optneg_capable(actions, protocol)
+		self.sock.sendall(codec.encode_optneg(actions, protocol))
+		r = self.get_msg()
+		if r[0] != SMFIC_OPTNEG:
+			raise MilterConvoError("bad reply to SMFIR_OPTNEG, was: %s/%s" % (r[0], str(r[1])))
+		ract = r[1]['actions']
+		rprot = r[1]['protocol']
+		if strict:
+			# There should be no bits outside what we claim to
+			# support.
+			if (ract & actions) != ract or \
+			   (rprot & protocol) != rprot:
+				raise MilterConvoError("SMFIR_OPTNEG reply with unsupported bits in actions or protocol: 0x%x/0x%x" % (ract, rprot))
+		else:
+			ract = ract & actions
+			rprot = rprot & protocol
+		return ract, rprot
+
+	def optneg_milter(self, actions=SMFI_V2_ACTS, protocol=SMFI_V2_PROT):
+		"""Perform the initial option negotiation as a milter,
+		reading the MTA's SMFIR_OPTNEG and replying with ours.
+		Returns a tuple of (actions, protocol) bitmasks for what
+		both we and the MTA support."""
+		actions, protocol = codec.optneg_capable(actions, protocol)
+		r = self.get_msg()
+		if r[0] != SMFIC_OPTNEG:
+			raise MilterConvoError("first message not SMFIR_OPTNEG, was: %s/%s" % (r[0], str(r[1])))
+		# Because we have already masked actions and protocol,
+		# we know that encode_optneg() will not further mask
+		# them and so what we generate here is the real intersection
+		# of what both ends support.
+		ract = r[1]['actions'] & actions
+		rprot = r[1]['protocol'] & protocol
+		self.sock.sendall(codec.encode_optneg(ract, rprot))
+		return (ract, rprot)

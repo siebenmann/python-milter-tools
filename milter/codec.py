@@ -15,7 +15,7 @@ This takes binary strings and decodes them to milter messages, or
 encodes milter messages into binary strings.
 """
 __all__ = ["MilterProtoError", "MilterIncomplete", "MilterDecodeError",
-	   "encode_msg", "decode_msg", ]
+	   "encode_msg", "decode_msg", "optneg_capable", "encode_optneg",]
 
 # (Public) exceptions
 class MilterProtoError(Exception):
@@ -278,3 +278,32 @@ def decode_msg(data):
 	if len(buf) > 0:
 		raise MilterDecodeError("decode: packet too long. packet type: '%s', len %d, remaining: %s raw %s" % (cmd, mlen, repr(buf), repr(rawdata[:mlen+4])))
 	return (cmd, rstruct, rest)
+
+# Option negotiation is somewhat complex.
+# First, we can't claim to support things that this module can't handle.
+# Next, we can't accept (or claim to accept) things that the other end
+# told us it can't handle.
+# Finally, while we theoretically can advertise support for less than
+# the full V2 protocol, there are milters that object to this to the
+# extent that they just drop the connection.
+def optneg_capable(actions, protocol):
+	"""Return a bitmask of actions and protocols that milter.codec
+	can support."""
+	return (actions & SMFI_V2_ACTS, protocol & SMFI_V2_PROT)
+
+def encode_optneg(actions=SMFI_V2_ACTS, protocol=SMFI_V2_PROT):
+	"""Encode an SMFIC_OPTNEG packet, either a new one or a reply.
+	You should supply the actions and protocol from the original
+	packet if this is a reply. This encoding process is careful
+	not to claim support for anything that this module does not
+	support.
+
+	Note that some milters will get very upset if you do not claim
+	to support all of the actions and protocol steps that they
+	want (for example, they will disconnect abruptly during
+	connection negotiation).  The safest thing is to claim to
+	support everything and then ignore anything you do not want to
+	deal with."""
+	actbits, protobits = optneg_capable(actions, protocol)
+	return encode_msg(SMFIC_OPTNEG, version=MILTER_VERSION,
+			  actions=actbits, protocol=protobits)

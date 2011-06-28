@@ -31,6 +31,9 @@ SMFIF_DELRCPT	= 0x08
 SMFIF_CHGHDRS	= 0x10
 SMFIF_QUARANTINE = 0x20
 
+# A bitmask of all actions supporting in protocol version 2.
+SMFI_V2_ACTS = 0x3f
+
 # From sendmail's include/libmilter/mfdef.h
 # Things that the mailer does not need to send the milter:
 SMFIP_NOCONNECT	= 0x01
@@ -40,6 +43,9 @@ SMFIP_NORCPT	= 0x08
 SMFIP_NOBODY	= 0x10
 SMFIP_NOHDRS	= 0x20
 SMFIP_NOEOH	= 0x40
+
+# A bitmask of all supported protocol steps in protocol version 2.
+SMFI_V2_PROT = 0x7f
 
 # Acceptable response commands/codes to return to sendmail (with accompanying
 # command data).  From sendmail's include/libmilter/mfdef.h

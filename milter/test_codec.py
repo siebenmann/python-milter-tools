@@ -231,5 +231,26 @@ class basicTests(unittest.TestCase):
 					  codec.encode_msg, cmd,
 					  **args)
 
+	optneg_tests = (
+		((0x0, 0x0), (0x0, 0x0)),
+		((0xff, 0xff), (SMFI_V2_ACTS, SMFI_V2_PROT)),
+		((0x10, 0x10), (0x10, 0x10)),
+		((SMFI_V2_ACTS, SMFI_V2_PROT), (SMFI_V2_ACTS, SMFI_V2_PROT)),
+		)
+	def testOptnegCap(self):
+		"""Test that optneg_capable correctly masks things."""
+		for a, b in self.optneg_tests:
+			r = codec.optneg_capable(a[0], a[1])
+			self.assertEqual(r, b)
+	def testOptnegEncode(self):
+		"""Test that encode_optneg() works right."""
+		for a, b in self.optneg_tests:
+			r = codec.encode_optneg(actions=a[0], protocol=a[1])
+			rcmd, rdict, data = codec.decode_msg(r)
+			self.assertEqual(data, '')
+			self.assertEqual(rcmd, SMFIC_OPTNEG)
+			rpair = (rdict['actions'], rdict['protocol'])
+			self.assertEqual(rpair, b)
+
 if __name__ == "__main__":
 	unittest.main()
