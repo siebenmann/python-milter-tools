@@ -190,5 +190,6 @@ class BufferedMilter(object):
 		ract, rprot =  codec.optneg_milter_capable(r[1]['actions'],
 							   r[1]['protocol'],
 							   actions, protocol)
-		self.sock.sendall(codec.encode_optneg(ract, rprot))
+		self.sock.sendall(codec.encode_optneg(ract, rprot,
+						      is_milter=True))
 		return (ract, rprot)

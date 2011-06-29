@@ -312,18 +312,17 @@ def optneg_milter_capable(ractions, rprotocol,
 	oprotocol = rprotocol & pmask
 	return (oactions, oprotocol)
 
-def encode_optneg(actions=SMFI_V2_ACTS, protocol=SMFI_V2_PROT):
-	"""Encode an SMFIC_OPTNEG packet, either a new one or a reply.
-	You should supply the actions and protocol from the original
-	packet if this is a reply. This encoding process is careful
-	not to claim support for anything that this module does not
-	support.
-
-	Note that some milters will get very upset if you do not claim
-	to support all of the actions and protocol steps that they
-	want (for example, they will disconnect abruptly during
-	connection negotiation).  The safest thing is to claim to
-	support everything and then ignore anything you do not want to
-	deal with."""
+def encode_optneg(actions, protocol, is_milter=False):
+	"""Encode a SMFIC_OPTNEG message based on the supplied actions
+	and protocol. Actions and protocol should normally have been
+	passed through either optneg_mta_capable() or
+	optneg_milter_capable()	depending on which side of the protocol
+	you are implementing."""
+	# We never encode any actions beyond what we support.
+	actions = actions & SMFI_V2_ACTS
+	# Unless we are handling the milter side of the protocol,
+	# clamp the protocol bitmask to what we support.
+	if not is_milter:
+		protocol = protocol & SMFI_V2_PROT
 	return encode_msg(SMFIC_OPTNEG, version=MILTER_VERSION,
 			  actions=actions, protocol=protocol)

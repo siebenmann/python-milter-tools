@@ -231,6 +231,7 @@ class basicTests(unittest.TestCase):
 					  codec.encode_msg, cmd,
 					  **args)
 
+	# These test results are from the MTA side of things.
 	optneg_tests = (
 		((0x0, 0x0), (0x0, 0x0)),
 		((0xff, 0xff), (SMFI_V2_ACTS, SMFI_V2_PROT)),
@@ -266,6 +267,16 @@ class basicTests(unittest.TestCase):
 			self.assertEqual(rcmd, SMFIC_OPTNEG)
 			rpair = (rdict['actions'], rdict['protocol'])
 			self.assertEqual(rpair, b)
+
+	# Fast and dirty test, just to have something.
+	def testOptnegMilterEncode(self):
+		"""Test encode_optneg() with is_milter=True, which should
+		not clamp protocol to SMFI_V2_PROT."""
+		r = codec.encode_optneg(actions=0xff, protocol=0x180,
+					is_milter = True)
+		rcmd, rdict, data = codec.decode_msg(r)
+		self.assertEqual(rdict['actions'], SMFI_V2_ACTS)
+		self.assertEqual(rdict['protocol'], 0x180)
 
 if __name__ == "__main__":
 	unittest.main()

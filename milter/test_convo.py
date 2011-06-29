@@ -27,6 +27,8 @@ READ, WRITE = object(), object()
 # Because this is specific to verifying the milter conversation, it
 # does not bother having to know exactly what the written messages are;
 # for our purpose, it is enough to know their type.
+# (Optionally it can also know the result dictionary and verify it,
+# because that turned out to be necessary.)
 class FakeSocket(object):
 	def __init__(self, conv=None):
 		if conv is None:
