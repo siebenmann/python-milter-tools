@@ -179,7 +179,7 @@ class continuedTests(unittest.TestCase):
 		((0x10, 0x10), (0x10, 0x10)),
 		((0xff, 0xff), (SMFI_V2_ACTS, SMFI_V2_PROT)),
 		)
-	def testMilterOptneg(self):
+	def testMTAOptneg(self):
 		"""Test that the MTA version of option negotiation returns
 		what we expect it to."""
 		for a, b in self.optneg_mta_pairs:
@@ -206,6 +206,21 @@ class continuedTests(unittest.TestCase):
 			bm = convo.BufferedMilter(s)
 			self.assertRaises(convo.MilterConvoError,
 					  bm.optneg_mta)
+
+	def testMilterOptneg(self):
+		"""Test the milter version of option negotiation."""
+		for a, b in self.optneg_mta_pairs:
+			s = FakeSocket()
+			s.addReadMsg(SMFIC_OPTNEG, version=MILTER_VERSION,
+				     actions=a[0], protocol=a[1])
+			s.addWrite(SMFIC_OPTNEG)
+			ract, rprot = convo.BufferedMilter(s).optneg_milter()
+			self.assertEqual(ract, b[0])
+			self.assertEqual(rprot, b[1])
+			# TODO: we should somehow examine the message that
+			# optneg_milter() writes to the socket. But this
+			# requires features that we do not have in our
+			# fake sockets...
 
 if __name__ == "__main__":
 	unittest.main()
