@@ -238,12 +238,27 @@ class basicTests(unittest.TestCase):
 		((SMFI_V2_ACTS, SMFI_V2_PROT), (SMFI_V2_ACTS, SMFI_V2_PROT)),
 		)
 	def testOptnegCap(self):
-		"""Test that optneg_capable correctly masks things."""
+		"""Test that optneg_mta_capable correctly masks things."""
 		for a, b in self.optneg_tests:
-			r = codec.optneg_capable(a[0], a[1])
+			r = codec.optneg_mta_capable(a[0], a[1])
 			self.assertEqual(r, b)
+
+	optneg_milter_tests = (
+		((SMFI_V2_ACTS, SMFI_V2_PROT),
+		 (SMFI_V2_ACTS, 0), (SMFI_V2_ACTS, 0)),
+		((SMFI_V2_ACTS, 0x1ff),
+		 (SMFI_V2_ACTS, 0), (SMFI_V2_ACTS, 0x180)),
+		)
+	def testOptnegMilterCap(self):
+		"""Test that optneg_milter_capable correctly masks things."""
+		for a, b, c in self.optneg_milter_tests:
+			r = codec.optneg_milter_capable(a[0], a[1],
+							b[0], b[1])
+			self.assertEqual(r, c)
+		
 	def testOptnegEncode(self):
 		"""Test that encode_optneg() works right."""
+		return
 		for a, b in self.optneg_tests:
 			r = codec.encode_optneg(actions=a[0], protocol=a[1])
 			rcmd, rdict, data = codec.decode_msg(r)

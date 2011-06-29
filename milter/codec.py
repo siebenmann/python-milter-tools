@@ -286,10 +286,31 @@ def decode_msg(data):
 # Finally, while we theoretically can advertise support for less than
 # the full V2 protocol, there are milters that object to this to the
 # extent that they just drop the connection.
-def optneg_capable(actions, protocol):
+#
+# Note that the protocol handling is significantly different from the
+# actions handling. In actions, the MTA advertises what actions the
+# milter can perform and the milter replies with what actions out of
+# them that it may perform; in the simple case this is SMFI_V2_ACTS
+# from the MTA and SMFI_V2_ACTS back from the milter.  In protocol,
+# the MTA advertises what protocol steps it supports skipping and the
+# milter replies with what protocol steps *should* be skipped.
+# The common case is that the milter client wants all steps that are
+# in the V2 protocol and not any steps that aren't.
+def optneg_mta_capable(actions, protocol):
 	"""Return a bitmask of actions and protocols that milter.codec
 	can support."""
 	return (actions & SMFI_V2_ACTS, protocol & SMFI_V2_PROT)
+def optneg_milter_capable(ractions, rprotocol,
+			  actions=SMFI_V2_ACTS, protocol=0x0):
+	"""Given an MTA's actions and protocol, and our actions and
+	protocol, return an (actions, protocol) tuple suitable for
+	use in a SMFIC_OPTNEG reply. Since our protocol is the steps
+	we wish the MTA to exclude, it will often be zero."""
+	actions = actions & SMFI_V2_ACTS
+	oactions = ractions & actions
+	pmask = protocol | (0xfffffff ^ SMFI_V2_PROT)
+	oprotocol = rprotocol & pmask
+	return (oactions, oprotocol)
 
 def encode_optneg(actions=SMFI_V2_ACTS, protocol=SMFI_V2_PROT):
 	"""Encode an SMFIC_OPTNEG packet, either a new one or a reply.
@@ -304,6 +325,5 @@ def encode_optneg(actions=SMFI_V2_ACTS, protocol=SMFI_V2_PROT):
 	connection negotiation).  The safest thing is to claim to
 	support everything and then ignore anything you do not want to
 	deal with."""
-	actbits, protobits = optneg_capable(actions, protocol)
 	return encode_msg(SMFIC_OPTNEG, version=MILTER_VERSION,
-			  actions=actbits, protocol=protobits)
+			  actions=actions, protocol=protocol)

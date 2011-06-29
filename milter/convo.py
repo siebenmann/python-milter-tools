@@ -161,7 +161,7 @@ class BufferedMilter(object):
 		Can optionally be passed more restrictive values for actions
 		and protocol, but this is not recommended; milters may dislike
 		it enough to disconnect abruptly on you."""
-		actions, protocol = codec.optneg_capable(actions, protocol)
+		actions, protocol = codec.optneg_mta_capable(actions, protocol)
 		self.sock.sendall(codec.encode_optneg(actions, protocol))
 		r = self.get_msg()
 		if r[0] != SMFIC_OPTNEG:
@@ -179,20 +179,16 @@ class BufferedMilter(object):
 			rprot = rprot & protocol
 		return ract, rprot
 
-	def optneg_milter(self, actions=SMFI_V2_ACTS, protocol=SMFI_V2_PROT):
+	def optneg_milter(self, actions=SMFI_V2_ACTS, protocol=0):
 		"""Perform the initial option negotiation as a milter,
 		reading the MTA's SMFIR_OPTNEG and replying with ours.
 		Returns a tuple of (actions, protocol) bitmasks for what
-		both we and the MTA support."""
-		actions, protocol = codec.optneg_capable(actions, protocol)
+		both we and the MTA will do."""
 		r = self.get_msg()
 		if r[0] != SMFIC_OPTNEG:
 			raise MilterConvoError("first message not SMFIR_OPTNEG, was: %s/%s" % (r[0], str(r[1])))
-		# Because we have already masked actions and protocol,
-		# we know that encode_optneg() will not further mask
-		# them and so what we generate here is the real intersection
-		# of what both ends support.
-		ract = r[1]['actions'] & actions
-		rprot = r[1]['protocol'] & protocol
+		ract, rprot =  codec.optneg_milter_capable(r[1]['actions'],
+							   r[1]['protocol'],
+							   actions, protocol)
 		self.sock.sendall(codec.encode_optneg(ract, rprot))
 		return (ract, rprot)

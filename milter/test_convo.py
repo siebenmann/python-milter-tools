@@ -53,11 +53,14 @@ class FakeSocket(object):
 		self._add(READ, buf)
 	def addWrite(self, cmd):
 		"""Add an expected write command."""
-		self._add(WRITE, cmd)
+		self._add(WRITE, (cmd,))
+	def addFullWrite(self, cmd, **args):
+		"""Add an expected write command and its full parameters."""
+		self._add(WRITE, (cmd, args))
 	def addMTAWrite(self, cmd):
 		"""Add an expected write command and then a SMFIR_CONTINUE
 		reply to it."""
-		self._add(WRITE, cmd)
+		self._add(WRITE, (cmd,))
 		self.addReadMsg(SMFIR_CONTINUE)
 
 	def isEmpty(self):
@@ -83,11 +86,15 @@ class FakeSocket(object):
 		self._verify_conv(WRITE)
 		# We verify that we got the right sort of stuff
 		r = codec.decode_msg(buf)
-		_, otype = self.conv[self.cindex]
+		_, wres = self.conv[self.cindex]
 		self.cindex += 1
+		otype = wres[0]
 		if r[0] != otype:
 			raise ConvError("received unexpected reply '%s' vs '%s" % \
 					(r[0], otype))
+		if len(wres) > 1 and r[1] != wres[1]:
+			raise ConvError("unexpected reply parameters: reply %s vs %s" % \
+					(r[1], wres[1]))
 
 # -----
 #
@@ -207,20 +214,28 @@ class continuedTests(unittest.TestCase):
 			self.assertRaises(convo.MilterConvoError,
 					  bm.optneg_mta)
 
+	optneg_milter_pairs = (
+		# The basic case; MTA says all V2 actions, all V2 protocol
+		# exclusions, we say we'll take all actions and we want the
+		# MTA not to exclude any protocol steps.
+		((SMFI_V2_ACTS, SMFI_V2_PROT), (SMFI_V2_ACTS, 0x0)),
+		# MTA offers additional protocol exclusions, we tell it not
+		# to do them but to do all V2 protocol actions.
+		((SMFI_V2_ACTS, 0x1ff), (SMFI_V2_ACTS, 0x180)),
+		# MTA offers additional actions, we decline.
+		((0xffff, SMFI_V2_PROT), (SMFI_V2_ACTS, 0x00)),
+		)
 	def testMilterOptneg(self):
 		"""Test the milter version of option negotiation."""
-		for a, b in self.optneg_mta_pairs:
+		for a, b in self.optneg_milter_pairs:
 			s = FakeSocket()
 			s.addReadMsg(SMFIC_OPTNEG, version=MILTER_VERSION,
 				     actions=a[0], protocol=a[1])
-			s.addWrite(SMFIC_OPTNEG)
+			s.addFullWrite(SMFIC_OPTNEG, version=MILTER_VERSION,
+				       actions=b[0], protocol=b[1])
 			ract, rprot = convo.BufferedMilter(s).optneg_milter()
 			self.assertEqual(ract, b[0])
 			self.assertEqual(rprot, b[1])
-			# TODO: we should somehow examine the message that
-			# optneg_milter() writes to the socket. But this
-			# requires features that we do not have in our
-			# fake sockets...
 
 if __name__ == "__main__":
 	unittest.main()
